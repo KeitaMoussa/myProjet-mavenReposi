@@ -10,6 +10,7 @@
         <module>retour-abo-enedis</module>
     </modules>
 
+<!-- voir comment ajouter des dependencies -->
     <parent>
         <groupId>fr.edf.dco</groupId>
         <artifactId>hadoop_udd</artifactId>
