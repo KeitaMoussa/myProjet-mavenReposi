@@ -1,0 +1,15 @@
+create 'dco_equilibre:faits_pdl_linky', {NAME=>'C', VERSIONS=>1, REPLICATION_SCOPE => '1'}, {NAME=>'H', VERSIONS=>10, REPLICATION_SCOPE => '1'}, {NAME=>'T', VERSIONS=>10, REPLICATION_SCOPE => '1'}
+create 'dco_equilibre:consentements', {NAME=>'C', VERSIONS=>99999999, REPLICATION_SCOPE => '1'}, {NAME=>'T', VERSIONS=>99999999, REPLICATION_SCOPE => '1'}
+
+grant '@dco_grp_mco','RX', 'dco_equilibre:faits_pdl_linky'
+grant '@dco_grp_adm','RWXCA', 'dco_equilibre:faits_pdl_linky'
+grant 'dacc','RWXA','dco_equilibre:faits_pdl_linky'
+grant 'oozie','RWXA','dco_equilibre:faits_pdl_linky'
+grant 'dco_app_simm','RWXCA','dco_equilibre:faits_pdl_linky'
+
+
+grant '@dco_grp_mco','RX', 'dco_equilibre:consentements'
+grant '@dco_grp_adm','RWXCA', 'dco_equilibre:consentements'
+grant 'dacc','RWXA','dco_equilibre:consentements'
+grant 'oozie','RWXA','dco_equilibre:consentements'
+grant 'dco_app_simm','RWXCA','dco_equilibre:consentements'

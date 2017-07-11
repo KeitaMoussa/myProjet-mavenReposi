@@ -1,0 +1,19 @@
+<!-- @pattern@ oozie
+  Coordinateur pour la chaine %INSTALL_PREFIX%/%INSTALL_NAME%
+-->
+<!-- @ignoreline@ -->
+<coordinator-app  frequency="${coord:days(1)}"
+                  start="%UTCCurrentDate%T06:30Z"
+                  name="%INSTALL_PREFIX%/%INSTALL_NAME%_Scheduler"
+                  end="2030-01-01T00:00Z" timezone="UTC"
+                  xmlns="uri:oozie:coordinator:0.4">
+    <controls>
+        <concurrency>1</concurrency>
+        <execution>LAST_ONLY</execution>
+    </controls>
+    <action>
+        <workflow>
+            <app-path>${appRoot}/oozie/equilibre-linkyq-Workflow.xml</app-path>
+        </workflow>
+    </action>
+</coordinator-app>

@@ -1,0 +1,329 @@
+<workflow-app name="${appFlux}" xmlns="uri:oozie:workflow:0.5">
+
+    <global>
+        <configuration>
+            <property>
+                <name>oozie.launcher.mapred.job.queue.name</name>
+                <value>${queueName}</value>
+            </property>
+        </configuration>
+    </global>
+
+    <credentials>
+        <credential name="my-hbase-creds" type="hbase">
+            <property>
+                <name>hbase.master.kerberos.principal</name>
+                <value>hbase/_HOST@${siteRealm}</value>
+            </property>
+            <property>
+                <name>hbase.regionserver.kerberos.principal</name>
+                <value>hbase/_HOST@${siteRealm}</value>
+            </property>
+            <property>
+                <name>hbase.zookeeper.quorum</name>
+                <value>${zookeeperQuorum}</value>
+            </property>
+            <property>
+                <name>hbase.security.authentication</name>
+                <value>kerberos</value>
+            </property>
+        </credential>
+
+        <credential name='my-hive-creds' type='hcat'>
+            <property>
+                <name>hcat.metastore.uri</name>
+                <value>${hiveMetastore}</value>
+            </property>
+            <property>
+                <name>hcat.metastore.principal</name>
+                <value>hive/_HOST@${siteRealm}</value>
+            </property>
+        </credential>
+
+    </credentials>
+
+
+    <start to="id-traitement"/>
+
+
+    <action name="id-traitement">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <exec>generateDate.sh</exec>
+            <file>${appRoot}/lib/generateDate.sh</file>
+            <capture-output/>
+        </shell>
+        <ok to="retrait-consentements"/>
+        <error to="kill"/>
+
+    </action>
+
+    <action name="retrait-consentements" cred="my-hbase-creds">
+        <spark xmlns="uri:oozie:spark-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <job-xml>${commonRoot}/conf/hbase-site.xml</job-xml>
+            <master>yarn-cluster</master>
+            <name>retrait-consentements</name>
+            <class>fr.edf.dco.hbase.spark.SparkCopy</class>
+            <jar>${nameNode}${appRoot}/lib/${appJarRetraitConsentements}</jar>
+            <spark-opts>--num-executors 10 --executor-cores 3 --executor-memory 6g --driver-memory 10g --conf spark.yarn.executor.memoryOverhead=4096 --conf spark.speculation=true --conf spark.speculation.interval=30s --conf spark.speculation.multiplier=4 --conf spark.speculation.quantile=0.75 --queue ${queueName} --conf spark.metrics.conf=metrics.properties --conf spark.yarn.security.tokens.hive.enabled=false</spark-opts>
+            <arg>-inputs_tables</arg>
+            <arg>${inputTables}</arg>
+            <arg>-columns_families</arg>
+            <arg>${columnfamilies}</arg>
+            <arg>-date_reprise</arg>
+            <arg>${dateReprise}</arg>
+            <arg>${nameNode}${krbAppRoot}/${krbKeytab}</arg>
+            <file>${nameNode}${commonRoot}/conf/hbase-site.xml</file>
+            <file>${nameNode}${commonRoot}/conf/hive-site.xml</file>
+            <file>${nameNode}${appRoot}/config/HDFSLogger.properties</file>
+            <file>${nameNode}${appRoot}/config/metrics.properties</file>
+        </spark>
+        <ok to="hive-to-hbase-r151"/>
+        <error to="kill"/>
+    </action>
+
+    <action name="hive-to-hbase-r151" cred="my-hbase-creds,my-hive-creds">
+        <spark xmlns="uri:oozie:spark-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <job-xml>${commonRoot}/conf/hbase-site.xml</job-xml>
+            <master>yarn-cluster</master>
+            <name>e-quilibre-HiveToHBase-R151</name>
+            <class>fr.edf.dco.hive2hbase.spark.SparkCopy</class>
+            <jar>${nameNode}${appRoot}/lib/${appJarHiveToHBase}</jar>
+            <spark-opts>--num-executors 10 --executor-cores 3 --executor-memory 6g --driver-memory 10g --conf spark.yarn.executor.memoryOverhead=4096 --conf spark.speculation=true --conf spark.speculation.interval=30s --conf spark.speculation.multiplier=4 --conf spark.speculation.quantile=0.75 --queue ${queueName} --conf spark.yarn.security.tokens.hive.enabled=false --conf spark.metrics.conf=metrics.properties --jars ${nameNode}${libRoot}/hiveClient/datanucleus-api-jdo-3.2.6.jar,${nameNode}${libRoot}/hiveClient/datanucleus-core-3.2.10.jar,${nameNode}${libRoot}/hiveClient/datanucleus-rdbms-3.2.9.jar</spark-opts>
+            <arg>-functions_names</arg>
+            <arg>${listR151Functions}</arg>
+            <arg>-requete_hive</arg>
+            <arg>${requeteHiveR151}</arg>
+            <arg>-id_workflow</arg>
+            <arg>${wf:actionData('id-traitement')['IdTraitement']}</arg>
+            <arg>-output_table</arg>
+            <arg>${outputTableNameHiveToHBase}</arg>
+            <arg>${nameNode}${krbAppRoot}/${krbKeytab}</arg>
+            <file>${nameNode}${krbAppRoot}/${krbKeytab}</file>
+            <file>${nameNode}${commonRoot}/conf/hbase-site.xml</file>
+            <file>${nameNode}${commonRoot}/conf/hive-site.xml</file>
+            <file>${nameNode}${appRoot}/config/HDFSLogger.properties</file>
+            <file>${nameNode}${appRoot}/config/metrics.properties</file>
+        </spark>
+        <ok to="rebouchage-trou"/>
+        <error to="kill"/>
+    </action>
+
+    <action name="rebouchage-trou" cred="my-hbase-creds">
+        <spark xmlns="uri:oozie:spark-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <job-xml>${commonRoot}/conf/hbase-site.xml</job-xml>
+            <master>yarn-cluster</master>
+            <name>e-quilibre-imputation</name>
+            <class>fr.edf.dco.equilibre.HBaseSparkImputationLot2</class>
+            <jar>${nameNode}${appRoot}/lib/${appJarBouchageTrou}</jar>
+            <spark-opts>--num-executors 10 --executor-cores 3 --executor-memory 6g --driver-memory 10g --conf spark.yarn.executor.memoryOverhead=4096 --conf spark.speculation=true --conf spark.speculation.interval=30s --conf spark.speculation.multiplier=4 --conf spark.speculation.quantile=0.75 --conf spark.metrics.conf=metrics.properties --queue ${queueName} --conf spark.yarn.security.tokens.hive.enabled=false  --jars ${nameNode}${libRoot}/hdfs/HDFSLogger-2.6.1.jar</spark-opts>
+            <arg>${outputTableNameHiveToHBase}</arg>
+            <arg>${wf:actionData('id-traitement')['IdTraitement']}</arg>
+            <arg>${nbMoisMax}</arg>
+            <arg>${krbPrincipal}</arg>
+            <arg>${nameNode}${krbAppRoot}/${krbKeytab}</arg>
+            <file>${nameNode}${commonRoot}/conf/hbase-site.xml</file>
+            <file>${nameNode}${commonRoot}/conf/hive-site.xml</file>
+            <file>${nameNode}${appRoot}/config/HDFSLogger.properties</file>
+            <file>${nameNode}${appRoot}/config/metrics.properties</file>
+        </spark>
+        <ok to="hbase-to-xml"/>
+        <error to="kill"/>
+    </action>
+
+    <action name="hbase-to-xml" cred="my-hbase-creds">
+        <spark xmlns="uri:oozie:spark-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <job-xml>${commonRoot}/conf/hbase-site.xml</job-xml>
+            <master>yarn-cluster</master>
+            <name>e-quilibre-HBaseToXML</name>
+            <class>fr.edf.dco.hbase2xml.spark.SparkCopy</class>
+            <jar>${nameNode}${appRoot}/lib/${appJarHBaseToXML}</jar>
+            <spark-opts>--num-executors 10 --executor-cores 3 --executor-memory 6g --driver-memory 10g --conf spark.yarn.executor.memoryOverhead=4096 --conf spark.speculation=true --conf spark.speculation.interval=30s --conf spark.speculation.multiplier=4 --conf spark.speculation.quantile=0.75 --conf spark.metrics.conf=metrics.properties --queue ${queueName} --conf spark.yarn.security.tokens.hive.enabled=false</spark-opts>
+            <arg>-converter_name</arg>
+            <arg>${converterHBaseToXMLName}</arg>
+            <arg>-output_repository</arg>
+            <arg>${workDirTmp}</arg>
+            <arg>-output_reject_repository</arg>
+            <arg>${workDirRejets}</arg>
+            <arg>-id_workflow</arg>
+            <arg>${wf:actionData('id-traitement')['IdTraitement']}</arg>
+            <arg>-inputs_tables</arg>
+            <arg>${inputTableNameHBaseToXML}</arg>
+            <arg>-columns_families</arg>
+            <arg>${columnfamilyHBaseToXML}</arg>
+            <arg>-krb_principal</arg>
+            <arg>${krbPrincipal}</arg>
+            <arg>-krb_keytab</arg>
+            <arg>${nameNode}${krbAppRoot}/${krbKeytab}</arg>
+            <arg>-columns_families</arg>
+            <arg>${columnfamilyHBaseToXML}</arg>
+            <file>${nameNode}${commonRoot}/conf/hbase-site.xml</file>
+            <file>${nameNode}${commonRoot}/conf/hive-site.xml</file>
+            <file>${nameNode}${appRoot}/config/HDFSLogger.properties</file>
+            <file>${nameNode}${appRoot}/config/metrics.properties</file>
+        </spark>
+        <ok to="tar-gz-compress"/>
+        <error to="kill"/>
+    </action>
+
+
+    <action name="tar-gz-compress">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>oozie.launcher.mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+                <property>
+                    <name>oozie.launcher.mapreduce.map.memory.mb</name>
+                    <value>8192</value>
+                </property>
+                <property>
+                    <name>oozie.launcher.mapreduce.map.java.opts</name>
+                    <value>-Xmx6400m</value>
+                </property>
+            </configuration>
+            <exec>compressTarGz.sh</exec>
+            <argument>${workDirTmp}</argument>
+            <argument>${outputDirPaas}</argument>
+            <argument>${outputDir}</argument>
+            <argument>${prefixFileName}</argument>
+            <argument>${xmlSize}</argument>
+            <argument>${batchSize}</argument>
+            <file>${nameNode}${appRoot}/config/profil.tarGz_file.sh</file>
+            <file>${nameNode}${commonRoot}/include/shell/include.oozie.sh</file>
+            <file>${nameNode}${commonRoot}/include/shell/include.commun.sh</file>
+            <file>${nameNode}${commonRoot}/include/shell/include.logging.sh</file>
+            <file>${nameNode}${appRoot}/lib/compressTarGz.sh</file>
+            <capture-output/>
+        </shell>
+        <ok to="liste-xml-rejets"/>
+        <error to="kill"/>
+    </action>
+
+    <action name="liste-xml-rejets">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <exec>listeXMLRejets.sh</exec>
+            <argument>${workDirRejets}</argument>
+            <file>${nameNode}${appRoot}/lib/listeXMLRejets.sh</file>
+            <capture-output/>
+        </shell>
+        <ok to="decision-action"/>
+        <error to="kill"/>
+    </action>
+
+
+    <decision name="decision-action">
+        <switch>
+            <case to="tar-gz-compress-ko">
+                ${(not empty wf:actionData('liste-xml-rejets')['listeRejets'])}
+            </case>
+            <default to="end"/>
+        </switch>
+    </decision>
+
+
+    <action name="tar-gz-compress-ko">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>oozie.launcher.mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+                <property>
+                    <name>oozie.launcher.mapreduce.map.memory.mb</name>
+                    <value>8192</value>
+                </property>
+                <property>
+                    <name>oozie.launcher.mapreduce.map.java.opts</name>
+                    <value>-Xmx6400m</value>
+                </property>
+            </configuration>
+            <exec>compressTarGzKo.sh</exec>
+            <argument>${workDirRejets}</argument>
+            <argument>${outputDir}</argument>
+            <argument>${prefixFileName}</argument>
+            <argument>${batchSize}</argument>
+            <file>${nameNode}${appRoot}/config/profil.tarGz_file.sh</file>
+            <file>${nameNode}${commonRoot}/include/shell/include.oozie.sh</file>
+            <file>${nameNode}${commonRoot}/include/shell/include.commun.sh</file>
+            <file>${nameNode}${commonRoot}/include/shell/include.logging.sh</file>
+            <file>${nameNode}${appRoot}/lib/compressTarGzKo.sh</file>
+        </shell>
+        <ok to="end"/>
+        <error to="kill"/>
+    </action>
+
+    <action name="mail-alert">
+        <email xmlns="uri:oozie:email-action:0.1">
+            <to>${alert_mail}</to>
+            <subject>Alerte : le workflow ${wf:name()} concernant le ${appFlux} contient des fichiers xml non valides</subject>
+            <body>
+                Workflow name : ${wf:name()}
+                Workflow ID : ${wf:id()}
+                Flux : ${appFlux}
+                Liste des fichiers xml non valides : ${wf:actionData('liste-xml-rejets')['listeRejets']}
+                Environnement :${contexte}
+            </body>
+        </email>
+        <ok to="end"/>
+        <error to="kill"/>
+    </action>
+
+
+
+    <action name="mail-success">
+        <email xmlns="uri:oozie:email-action:0.1">
+            <to>${success_mail}</to>
+            <subject>le workflow ${wf:name()} est terminé avec succès</subject>
+            <body>
+Workflow name : ${wf:name()}
+Workflow ID : ${wf:id()}
+Flux : ${appFlux}
+Environnement :${contexte}
+Stats: ${wf:actionData('tar-gz-compress')['PRM']} PRM, ${wf:actionData('tar-gz-compress')['XML']} XML, ${wf:actionData('tar-gz-compress')['TAR']} TAR
+            </body>
+        </email>
+        <ok to="end"/>
+        <error to="kill"/>
+    </action>
+
+    <action name="mail-echec">
+        <email xmlns="uri:oozie:email-action:0.1">
+            <to>${error_mail}</to>
+            <subject>Erreur dans le workflow ${wf:name()}</subject>
+            <body>
+Workflow name : ${wf:name()}
+Workflow ID : ${wf:id()}
+Flux : ${appFlux}
+Environnement :${contexte}
+            </body>
+        </email>
+        <ok to="end"/>
+        <error to="kill"/>
+    </action>
+
+
+
+    <kill name="kill">
+        <message>ERROR - Something went wrong.</message>
+    </kill>
+
+    <end name="end"/>
+</workflow-app>
+

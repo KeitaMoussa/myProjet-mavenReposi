@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <modules>
+
+        <module>HBaseToXML</module>
+        <module>HiveToHBase</module>
+        <module>Retrait-Consentements</module>
+        <module>retour-abo-enedis</module>
+    </modules>
+
+    <parent>
+        <groupId>fr.edf.dco</groupId>
+        <artifactId>hadoop_udd</artifactId>
+        <version>2.5.3</version>
+    </parent>
+
+    <groupId>fr.edf.dco</groupId>
+    <artifactId>e-quilibre</artifactId>
+    <packaging>pom</packaging>
+    <version>1.65-SNAPSHOT</version>
+
+
+    <organization>
+        <name>EDF</name>
+    </organization>
+
+    <developers>
+        <developer>
+            <email>larbi-externe.kennouche@edf.fr</email>
+            <name>Larbi Kennouche</name>
+        </developer>
+    </developers>
+
+    <!-- MANDATORY for Maven releases -->
+    <!-- When releasing with Jenkins, Jenkin's Gitlab account shall be granted "Master" role on the repository -->
+    <scm>
+        <url>http://gitlab.dn.edf.fr/dco/e-quilibre</url>
+        <connection>scm:git:ssh://git@gitlab.dn.edf.fr/dco/e-quilibre.git</connection>
+        <developerConnection>scm:git:ssh://git@gitlab.dn.edf.fr/dco/e-quilibre.git</developerConnection>
+        <tag>HEAD</tag>
+  </scm>
+  
+
+
+    <properties>
+        <cpcImport.version>1.0-SNAPSHOT</cpcImport.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm</maven.build.timestamp.format>
+        <buildDate>${maven.build.timestamp}</buildDate>
+        <compileSource>1.7</compileSource>
+        <targetJdk>${compileSource}</targetJdk>
+
+        <log4j.version>1.2.17</log4j.version>
+        <junit.version>4.12</junit.version>
+        <surefire.version>2.18.1</surefire.version>
+        <shade.version>2.4.1</shade.version>
+        <maven-jar.version>2.6</maven-jar.version>
+
+        <scala.version>2.10.4</scala.version>
+        <oracle.version>12.1.2-0-0</oracle.version>
+        <spark-csv.version>1.4.0</spark-csv.version>
+        <spark-xml.version>0.4.1</spark-xml.version>
+        <spark-hbase.version>1.2.0-cdh5.7.1</spark-hbase.version>
+        <jackson.version>2.6.3</jackson.version>
+        <mini-cluster.version>0.1.8</mini-cluster.version>
+        
+        <json.version>20090211</json.version>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+
+
+        <maven-compiler-plugin.version>3.1</maven-compiler-plugin.version>
+        <maven-assembly-plugin.version>2.4</maven-assembly-plugin.version>
+
+        <nexus.baseUrl>https://si-nexus-forge.edf.fr/nexus</nexus.baseUrl>
+        <nexus.release.url>${nexus.baseUrl}/content/repositories/projet-hadoop-udd-release/</nexus.release.url>
+        <nexus.snapshot.url>${nexus.baseUrl}/content/repositories/projet-hadoop-udd-snapshot/</nexus.snapshot.url>
+        <nexus.staging.maven.plugin.version>1.6.6</nexus.staging.maven.plugin.version>
+
+
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>repo.hortonworks.com</id>
+            <name>Hortonworks HDP Maven Repository</name>
+            <url>http://repo.hortonworks.com/content/repositories/releases/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>scala-tools.org</id>
+            <name>Scala-tools Maven2 Repository</name>
+            <url>http://scala-tools.org/repo-releases</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- spark dependencies-->
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_2.10</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-sql_2.10</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-hive_2.10</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+
+
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+
+            <!-- hadoop dependency-->
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-common</artifactId>
+                <version>${hadoop.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api-2.5</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-hdfs</artifactId>
+                <version>${hadoop.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api-2.5</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+
+
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-client</artifactId>
+                <version>${hadoop.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-mapreduce-client-core</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+
+            <!-- HBase dependency-->
+            <dependency>
+                <groupId>org.apache.hbase</groupId>
+                <artifactId>hbase-client</artifactId>
+                <version>${hbase.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                </exclusions>
+
+            </dependency>
+            <dependency>
+                <groupId>org.apache.hbase</groupId>
+                <artifactId>hbase-common</artifactId>
+                <version>${hbase.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.hbase</groupId>
+                <artifactId>hbase-server</artifactId>
+                <version>${hbase.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.hadoop</groupId>
+                        <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mortbay.jetty</groupId>
+                        <artifactId>servlet-api-2.5</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>javax.servlet</groupId>
+                        <artifactId>servlet-api</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+
+            <!-- HBASE-SPARK -->
+            <dependency>
+                <groupId>org.apache.hbase</groupId>
+                <artifactId>hbase-spark</artifactId>
+                <version>${spark-hbase.version}</version>
+            </dependency>
+
+
+            <dependency>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest_2.10</artifactId>
+                <version>2.2.4</version>
+                <!-- To depend on scala 2.10.4 -->
+            </dependency>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-compiler</artifactId>
+                <version>${scala.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-scalap</artifactId>
+                <version>${scala.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>fr.edf.dco.common</groupId>
+                <artifactId>HDFSLogger</artifactId>
+                <version>${hdfslogger.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-core</artifactId>
+                <version>2.2.7</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-impl</artifactId>
+                <version>2.2.7</version>
+            </dependency>
+
+
+
+            <!-- dependances pour le spark streaming-->
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>${json.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>2.5</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-streaming_2.10</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-streaming-kafka_2.10</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>fr.edf.dco.tests</groupId>
+                <artifactId>mini-cluster</artifactId>
+                <version>${mini-cluster.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>fr.edf.dco.common</groupId>
+                <artifactId>spark-streaming-kafka</artifactId>
+                <version>0.1.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka_2.10</artifactId>
+                <version>0.10.0.1</version>
+            </dependency>
+
+
+        </dependencies>
+
+
+    </dependencyManagement>
+
+
+    <distributionManagement>
+        <repository>
+            <id>nexus</id>
+            <name>Internal Releases</name>
+            <url>${nexus.release.url}</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexus</id>
+            <name>Internal Snapshots</name>
+            <url>${nexus.snapshot.url}</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+
+</project>
